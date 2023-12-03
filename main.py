@@ -7,6 +7,7 @@ from scipy.io import savemat
 from scipy.io import loadmat
 
 from metrics import find_similarity
+from metrics import Similarity
 from models.nmf_hs import nmf_hs
 
 
@@ -61,7 +62,7 @@ class NMF_Models:
         if(self.W_nmf_hs is None):
             self.W_nmf_hs, H, error = nmf_hs(self.X, 1000.0, 1000, self.num_endmembers)
             self.save_matrices()
-        err, best_ordering = find_similarity(self.W_nmf_hs, self.W_gt)
+        err, best_ordering = find_similarity(self.W_nmf_hs, self.W_gt, similarity_type=Similarity.PEARSONS_SIMILARITY)
         self.plot_endmembers(self.W_nmf_hs, title="NMF_HS", ordering=best_ordering)
         print("The error is", err)
 
