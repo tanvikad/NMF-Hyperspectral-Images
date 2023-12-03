@@ -43,8 +43,7 @@ def cosine_distance(vec1, vec2):
     return spatial.distance.cosine(vec1, vec2)
 
 def pearsons_similarity(vec1, vec2):
-    similarity = pearsonr(vec1, vec2)
-    print(similarity)
+    similarity = pearsonr(vec1, vec2)[0]
     similarity = max(0, similarity) #don't let it be less than 0
     distance = 1 - similarity #to get distance
     return distance
