@@ -2,7 +2,7 @@ import numpy as np
 from numba import jit
 
 
-@jit(nopython=True, parallel=True)
+# @jit(nopython=True, parallel=True)
 def nmf_hs_l1_2(X, delta, lambd, iters, components):
     (rows, cols) = X.shape
     # Initialize A and S
