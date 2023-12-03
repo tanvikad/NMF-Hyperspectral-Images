@@ -3,9 +3,12 @@ import numpy as np
 from sklearn.decomposition import NMF 
 from matplotlib import pyplot as plt
 
+from models.nmf_hs import nmf_hs
+
 def get_x():
     hs_image = sio.loadmat("data/Urban_R162.mat")
     X = np.array(hs_image["Y"]).astype(np.float64)
+    return X
 
 def get_w_gt(endmembers = 6):
     if(endmembers == 6):
@@ -21,7 +24,7 @@ def get_w_gt(endmembers = 6):
         W_gt4 = hs_gt_image["M"]
         return W_gt4
     
-def plot_endmembers(W, n_comps, title="Endmembers", ordering=None ):
+def plot_endmembers(W, n_comps, title="Endmembers", ordering=None):
     if(ordering == None): ordering = range(n_comps)
     W_t = W.transpose()
     bands = range(162)
@@ -32,6 +35,12 @@ def plot_endmembers(W, n_comps, title="Endmembers", ordering=None ):
     for i in range(n_comps):
         plt.plot(bands, W_t[ordering[i]], color = colors[i])
     
-    pathname = title + ".png"
+    pathname = "img/" + title + ".png"
     plt.savefig(pathname)
 
+def run_nmf_hs():
+    X = get_x()
+    W, H, error = nmf_hs(X, 1000.0, 1000, 6)
+    plot_endmembers(W, 6, title="NMF_HS")
+
+run_nmf_hs()
