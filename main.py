@@ -23,6 +23,8 @@ class NMF_Models:
         self.W_nmf_hs = None 
         self.W_nmf_hs_l1_2 = None 
         self.W_gnmf = None 
+        self.W_rnmf = None
+
         if(not reload): self.load_matrices()
 
 
@@ -38,6 +40,9 @@ class NMF_Models:
         if(self.W_gnmf is not None):
             self.W_gnmf = self.W_gnmf.astype(np.float64) 
             mat_dic["W_gnmf"] = self.W_gnmf
+        if(self.W_rnmf is not None):
+            self.W_rnmf = self.W_rnmf.astype(np.float64) 
+            mat_dic["W_rnmf"] = self.W_rnmf
 
         savemat("generated_data/data.mat", mat_dic)
 
@@ -49,6 +54,8 @@ class NMF_Models:
             self.W_nmf_hs_l1_2 = mat_dic["W_nmf_hs_l1_2"]
         if("W_gnmf" in mat_dic):
             self.W_gnmf = mat_dic["W_gnmf"]
+        if("W_rnmf" in mat_dic):
+            self.W_rnmf = mat_dic["W_rnmf"]
 
     def set_w_gt(self, endmembers = 6):
         hs_gt_image = None
@@ -84,6 +91,20 @@ class NMF_Models:
         self.plot_endmembers(self.W_nmf_hs, title="NMF_HS", ordering=best_ordering)
         print("The error is", err)
     
+    def run_rnmf(self):
+        if(self.W_rnmf is None):
+            self.W_rnmf, H, outlier, obj = robust_nmf(self.X,
+                                            rank=self.num_endmembers,
+                                            beta=1.5,
+                                            init='NMF',
+                                            reg_val=1,
+                                            sum_to_one=0,
+                                            tol=1e-7,
+                                            max_iter=50)
+            self.save_matrices()
+        err, best_ordering = find_similarity(self.W_rnmf, self.W_gt)
+        self.plot_endmembers(self.W_rnmf, title="RNMF", ordering = best_ordering)
+        print("The error is", err)
 
     def run_gmnf(self):
         if(self.W_gnmf is None):
