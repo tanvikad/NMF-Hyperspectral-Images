@@ -12,6 +12,8 @@ from models.nmf_hs import nmf_hs
 # from models.libNMF.knmf import knmf_model
 from models.nmf_hs_l1_2 import nmf_hs_l1_2
 from models.gnmf import gnmf
+from models.rnmf import robust_nmf
+
 
 
 class NMF_Models:
@@ -25,6 +27,8 @@ class NMF_Models:
         self.W_gnmf = None 
         self.W_rnmf = None
 
+        self.data_pathname = "generated_data/data" + str(self.num_endmembers) + ".mat"
+        self.similarity_type = Similarity.COSINE_SIMILARITY
         if(not reload): self.load_matrices()
 
 
@@ -44,10 +48,10 @@ class NMF_Models:
             self.W_rnmf = self.W_rnmf.astype(np.float64) 
             mat_dic["W_rnmf"] = self.W_rnmf
 
-        savemat("generated_data/data.mat", mat_dic)
+        savemat(self.data_pathname, mat_dic)
 
     def load_matrices(self):
-        mat_dic = loadmat('generated_data/data.mat')
+        mat_dic = loadmat(self.data_pathname)
         if("W_nmf_hs" in mat_dic):
             self.W_nmf_hs = mat_dic["W_nmf_hs"]
         if("W_nmf_hs_l1_2" in mat_dic):
@@ -59,9 +63,9 @@ class NMF_Models:
 
     def set_w_gt(self, endmembers = 6):
         hs_gt_image = None
-        if(endmembers == 6):
+        if(self.num_endmembers == 6):
             hs_gt_image = sio.loadmat("data/groundTruth_Urban_end6/end6_groundTruth.mat")
-        elif(endmembers == 5):
+        elif(self.num_endmembers == 5):
             hs_gt_image = sio.loadmat("data/groundTruth_Urban_end5/end5_groundTruth.mat")
         else:
             hs_gt_image = sio.loadmat("data/groundTruth/end4_groundTruth.mat")
@@ -75,11 +79,13 @@ class NMF_Models:
         colors = ['b', 'g', 'r', 'c', 'm', 'y']
         plt.xlabel("Bands")
         plt.ylabel("Reflectance")
+        ax = plt.gca()
+        ax.set_yticks([])
         plt.title(title)
         for i in range(self.num_endmembers):
             plt.plot(bands, W_t[ordering[i]], color = colors[i])
         
-        pathname = "img/" + title + ".png"
+        pathname = "img/" + title + "_" + str(self.num_endmembers) + ".png"
         plt.savefig(pathname)
         plt.clf()
 
@@ -87,9 +93,9 @@ class NMF_Models:
         if(self.W_nmf_hs is None):
             self.W_nmf_hs, H, error = nmf_hs(self.X, 1000.0, 1000, self.num_endmembers)
             self.save_matrices()
-        err, best_ordering = find_similarity(self.W_nmf_hs, self.W_gt, similarity_type=Similarity.COSINE_DISTANCE)
+        err, best_ordering = find_similarity(self.W_nmf_hs, self.W_gt, num_components=self.num_endmembers, similarity_type=self.similarity_type)
         self.plot_endmembers(self.W_nmf_hs, title="NMF_HS", ordering=best_ordering)
-        print("The error is", err)
+        return err 
     
     def run_rnmf(self):
         if(self.W_rnmf is None):
@@ -102,38 +108,90 @@ class NMF_Models:
                                             tol=1e-7,
                                             max_iter=50)
             self.save_matrices()
-        err, best_ordering = find_similarity(self.W_rnmf, self.W_gt)
+        err, best_ordering = find_similarity(self.W_rnmf, self.W_gt, num_components=self.num_endmembers, similarity_type=self.similarity_type)
         self.plot_endmembers(self.W_rnmf, title="RNMF", ordering = best_ordering)
-        print("The error is", err)
+        return err 
 
     def run_gmnf(self):
         if(self.W_gnmf is None):
             self.W_gnmf, H, error = nmf_hs(self.X, 1000.0, 1000, self.num_endmembers)
             self.save_matrices()
-        err, best_ordering = find_similarity(self.W_gnmf, self.W_gt, similarity_type=Similarity.COSINE_DISTANCE)
+
+        err, best_ordering = find_similarity(self.W_gnmf, self.W_gt,num_components=self.num_endmembers, similarity_type=self.similarity_type)
         self.plot_endmembers(self.W_gnmf, title="GNMF", ordering=best_ordering)
-        print("The error is", err)
+        return err
 
     def run_nmf_l1_2(self):
         if(self.W_nmf_hs_l1_2 is None):
             self.W_nmf_hs_l1_2, H, error = nmf_hs_l1_2(self.X, 1000.0, 0.5, 1000, self.num_endmembers)
             self.save_matrices()
-        err, best_ordering = find_similarity(self.W_nmf_hs_l1_2, self.W_gt, similarity_type=Similarity.COSINE_DISTANCE)
+        err, best_ordering = find_similarity(self.W_nmf_hs_l1_2, self.W_gt, num_components=self.num_endmembers, similarity_type=self.similarity_type)
         self.plot_endmembers(self.W_nmf_hs_l1_2, title="NMF_HS_L1_2", ordering=best_ordering)
-        print("The error is", err)
-        
-
-    # def run_knmf(self):
-    #     knmf_model(self.X, self.num_endmembers)
-
+        return err  
 
     def plot_gt(self):
         self.plot_endmembers(self.W_gt, title="Groundtruth")
+    
+
+    def get_stats(self):
+        self.models_names = ["RNMF", "NMF_HS", "NMF_HS_L1_2", "GNMF"]
+        funcs = [self.run_rnmf, self.run_nmf_hs, self.run_nmf_l1_2, self.run_gmnf]
+        self.similarities = [Similarity.COSINE_SIMILARITY, Similarity.RMSE]
+
+        errors = [[] for i in range(len(self.similarities))]
+        print("Model Name,", end="")
+        for similarity in self.similarities:
+            print(similarity.name, end=",")
+        print("")
+        for i in range(len(self.models_names)):
+            print(self.models_names[i], ", ", end="")
+            f = funcs[i]
+            for j in range(len(self.similarities)):
+                similarity = self.similarities[j]
+                self.similarity_type = similarity
+                err = f()
+                print(err, ", ", end="")
+                errors[j] += [err]
+            print("")
+        return errors
 
 
-models = NMF_Models()
-models.plot_gt()
-models.run_nmf_hs()
-# models.run_knmf()
-models.run_nmf_l1_2()
-models.run_gmnf()
+
+def get_stats_per_endmember():
+    model6 = NMF_Models()
+    data6 = model6.get_stats()
+    model5 = NMF_Models(num_endmembers=5, reload=False)
+    data5 = model5.get_stats()
+    model4 = NMF_Models(num_endmembers=4, reload=False)
+    data4 = model4.get_stats()
+
+    
+    num_similarities = len(model6.similarities)
+    model_names = model6.models_names
+    for i in range(num_similarities):
+        similarity = model6.similarities[i]
+
+        plt.xlabel("Models")
+        plt.ylabel(similarity.name)
+
+        title = similarity.name + " across 4, 5, and 6 Endmembers"
+        plt.title(title)
+
+        # ax = plt.gca()
+        # ax.set_xticks(model_names)
+        # ax.set_xticklabels(model_names)
+
+        plt.plot(model_names,data4[i], '--ro', label="4 endmembers")
+        plt.plot(model_names,data5[i], '--bo', label="5 endmembers")
+        plt.plot(model_names,data6[i], '--go', label="6 endmembers")
+
+        plt.legend()
+        pathname = "img/" + similarity.name + "_compared.png"
+        plt.savefig(pathname)
+        plt.clf()
+        
+
+
+
+
+get_stats_per_endmember()

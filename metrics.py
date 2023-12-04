@@ -8,12 +8,12 @@ from sklearn.metrics import mean_squared_error
 
 
 class Similarity(Enum):
-    COSINE_DISTANCE = 0
+    COSINE_SIMILARITY = 0
     PEARSONS_SIMILARITY = 1
     HAMMING_DISTANCE = 2 
     RMSE = 3
 
-def find_similarity(W, W_gt, num_components=6, similarity_type=Similarity.COSINE_DISTANCE ):
+def find_similarity(W, W_gt, num_components=6, similarity_type=Similarity.COSINE_SIMILARITY ):
     if(W.shape != W_gt.shape): return None, None
     l = list(permutations(range(num_components)))
 
@@ -26,7 +26,7 @@ def find_similarity(W, W_gt, num_components=6, similarity_type=Similarity.COSINE
         current_error = 0
         for i in range(len(perm)):
             if(dp[perm[i]][i] == -1):
-                if(similarity_type == Similarity.COSINE_DISTANCE):
+                if(similarity_type == Similarity.COSINE_SIMILARITY):
                     dp[perm[i]][i] = cosine_distance(W[:,perm[i]], W_gt[:,i])
                 elif(similarity_type == Similarity.HAMMING_DISTANCE):
                     dp[perm[i]][i] = hamming_distance(W[:,perm[i]], W_gt[:,i])
